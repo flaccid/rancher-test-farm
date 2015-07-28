@@ -28,7 +28,6 @@ Vagrant.configure(2) do |config|
       vb.memory = vb_memory
       vb.cpus = vb_cpus
     end
-
     rancher.vm.network :private_network, ip: rancher_private_ip
     rancher.vm.network 'forwarded_port',
                        guest: 8080,
@@ -42,7 +41,6 @@ Vagrant.configure(2) do |config|
 
   config.vm.define 'rancher-host' do |rancher_host|
     rancher_host.vm.network :private_network, ip: rancher_host_private_ip
-
     rancher_host.vm.provision :shell,
                               inline: 'docker run -e WAIT=true '\
                                '-v /var/run/docker.sock:/var/run/docker.sock '\
