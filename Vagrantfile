@@ -14,12 +14,18 @@ rancher_private_ip = '172.19.8.8'
 rancher_host_private_ip = '172.19.8.9'
 rancher_url = "http://#{rancher_private_ip}:8080"
 
+# compose files
+docker_compose_file = 'https://raw.githubusercontent.com/flaccid/countdown_example/master/docker-compose.yml'
+rancher_compose_file = 'https://raw.githubusercontent.com/flaccid/countdown_example/master/rancher-compose.yml'
+
+rancher_compose_tarball = 'https://github.com/rancher/rancher-compose/releases/download/v0.2.5/rancher-compose-linux-amd64-v0.2.5.tar.gz'
+
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
 # you're doing.
 Vagrant.configure(2) do |config|
-  config.vm.box   = 'rancherio/rancheros'
+  config.vm.box = 'rancherio/rancheros'
   config.vm.box_version = '>=0.3.3'
 
   config.vm.define 'rancher-server', primary: true do |rancher|
@@ -46,6 +52,16 @@ Vagrant.configure(2) do |config|
                                '-v /var/run/docker.sock:/var/run/docker.sock '\
                                "rancher/agent:latest #{rancher_url}",
                               privileged: true
+  end
+
+  config.vm.define 'rancher-client' do |rancher_client|
+    rancher_client.vm.box = 'coreos-alpha'
+    rancher_client.vm.box_url = "http://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
+    rancher_client.vm.provision :shell,
+                         inline: 'cd /tmp && '\
+                          "wget -q #{rancher_compose_tarball} && "\
+                          'tar zxvf ./rancher-compose-*.tar.gz && '\
+                          "cp -v /tmp/rancher-compose-v*/rancher-compose /tmp/"
   end
 
   # Disabling compression as OS X has an ancient version of rsync installed
