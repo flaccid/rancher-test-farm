@@ -10,8 +10,8 @@ vb_gui = false
 vb_memory = 1024
 vb_cpus = 1
 expose_rancher_ui = 8080
-rancher_private_ip = '172.17.8.100'
-rancher_host_private_ip = '172.17.8.101'
+rancher_private_ip = '172.19.8.8'
+rancher_host_private_ip = '172.19.8.9'
 rancher_url = "http://#{rancher_private_ip}:8080"
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
