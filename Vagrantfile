@@ -62,6 +62,13 @@ Vagrant.configure(2) do |config|
                           "wget -q #{rancher_compose_tarball} && "\
                           'tar zxvf ./rancher-compose-*.tar.gz && '\
                           "cp -v /tmp/rancher-compose-v*/rancher-compose /tmp/"
+    rancher_client.vm.provision :shell,
+                         inline: 'cd /tmp && '\
+                          'mkdir -p composition && cd composition && '\
+                          "wget -q #{docker_compose_file} && "\
+                          "wget -q #{rancher_compose_file} && "\
+                          "export RANCHER_URL=#{rancher_url} && "\
+                          "/tmp/rancher-compose up -d"
   end
 
   # Disabling compression as OS X has an ancient version of rsync installed
