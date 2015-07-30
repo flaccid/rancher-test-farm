@@ -29,7 +29,8 @@ Vagrant.configure(2) do |config|
   config.vm.box_version = '>=0.3.3'
 
   config.vm.define 'rancher-server', primary: true do |rancher|
-    config.vm.provider :virtualbox do |vb|
+    rancher.vm.hostname = 'rancher-server'
+    rancher.vm.provider :virtualbox do |vb|
       vb.gui = vb_gui
       vb.memory = vb_memory
       vb.cpus = vb_cpus
@@ -46,6 +47,7 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.define 'rancher-host' do |rancher_host|
+    rancher_host.vm.hostname = 'rancher-host'
     rancher_host.vm.network :private_network, ip: rancher_host_private_ip
     rancher_host.vm.network 'forwarded_port', guest: 8000, host: 8000
     rancher_host.vm.provision :shell,
@@ -56,6 +58,7 @@ Vagrant.configure(2) do |config|
   end
 
   config.vm.define 'rancher-client' do |rancher_client|
+    rancher_client.vm.hostname = 'rancher-client'
     rancher_client.vm.box = 'coreos-alpha'
     rancher_client.vm.box_url = 'http://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json'
 
@@ -69,8 +72,8 @@ Vagrant.configure(2) do |config|
     # download the compose files
     rancher_client.vm.provision :shell,
                                 inline: 'mkdir -p /tmp/composition && '\
-                                "wget -q #{docker_compose_file} -O /tmp/composition/docker-compose.yml && "\
-                                "wget -q #{rancher_compose_file} -O /tmp/composition/rancher-compose.yml"
+                                  "wget -q #{docker_compose_file} -O /tmp/composition/docker-compose.yml && "\
+                                  "wget -q #{rancher_compose_file} -O /tmp/composition/rancher-compose.yml"
 
     rancher_up = <<SCRIPT
 api_keys=$(curl --silent -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{}' #{rancher_url}/v1/projects/1a5/apikeys)
@@ -88,11 +91,20 @@ cat <<EOF> /tmp/rancher-up.sh
 EOF
 
 chmod +x /tmp/rancher-up.sh
-/tmp/rancher-up.sh
+sleep 3 && /tmp/rancher-up.sh
 SCRIPT
 
     # get api keys and run rancher-compose
     rancher_client.vm.provision :shell, inline: rancher_up
+
+    lb_check = <<SCRIPT
+echo 'waiting for site to be available'
+timeout 100 bash -c -- 'while true; do printf "." && curl --output /dev/null --silent --head --fail http://172.19.8.9:8000/ && break || sleep 1; done'
+echo 'checking content'
+curl --silent http://172.19.8.9:8000 | grep "Rio 2016 Olympic Games"
+SCRIPT
+
+    rancher_client.vm.provision :shell, inline: lb_check
   end
 
   # Disabling compression as OS X has an ancient version of rsync installed
