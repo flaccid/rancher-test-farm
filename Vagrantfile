@@ -56,19 +56,42 @@ Vagrant.configure(2) do |config|
 
   config.vm.define 'rancher-client' do |rancher_client|
     rancher_client.vm.box = 'coreos-alpha'
-    rancher_client.vm.box_url = "http://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json"
+    rancher_client.vm.box_url = 'http://alpha.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json'
+
+    # install rancher-compose
     rancher_client.vm.provision :shell,
-                         inline: 'cd /tmp && '\
-                          "wget -q #{rancher_compose_tarball} && "\
-                          'tar zxvf ./rancher-compose-*.tar.gz && '\
-                          "cp -v /tmp/rancher-compose-v*/rancher-compose /tmp/"
+                                inline: 'cd /tmp && '\
+                                  "wget -q #{rancher_compose_tarball} && "\
+                                  'tar zxvf ./rancher-compose-*.tar.gz && '\
+                                  'cp -v /tmp/rancher-compose-v*/rancher-compose /tmp/'
+
+    # download the compose files
     rancher_client.vm.provision :shell,
-                         inline: 'cd /tmp && '\
-                          'mkdir -p composition && cd composition && '\
-                          "wget -q #{docker_compose_file} && "\
-                          "wget -q #{rancher_compose_file} && "\
-                          "export RANCHER_URL=#{rancher_url} && "\
-                          "/tmp/rancher-compose up -d"
+                                inline: 'mkdir -p /tmp/composition && '\
+                                "wget -q #{docker_compose_file} -O /tmp/composition/docker-compose.yml && "\
+                                "wget -q #{rancher_compose_file} -O /tmp/composition/rancher-compose.yml"
+
+    rancher_up = <<SCRIPT
+api_keys=$(curl --silent -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{}' #{rancher_url}/v1/projects/1a5/apikeys)
+access_key=$(echo "$api_keys" | jq -r '.publicValue')
+secret_key=$(echo "$api_keys" | jq -r '.secretValue')
+
+cat <<EOF> /tmp/rancher-up.sh
+#!/bin/sh -e
+
+/tmp/rancher-compose \
+  -f /tmp/composition/docker-compose.yml \
+  -r /tmp/composition/rancher-compose.yml \
+  --url #{rancher_url} \
+  --access-key "$access_key" --secret-key "$secret_key" up -d
+EOF
+
+chmod +x /tmp/rancher-up.sh
+/tmp/rancher-up.sh
+SCRIPT
+
+    # get api keys and run rancher-compose
+    rancher_client.vm.provision :shell, inline: rancher_up
   end
 
   # Disabling compression as OS X has an ancient version of rsync installed
