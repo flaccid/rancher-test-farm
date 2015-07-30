@@ -8,6 +8,7 @@ Sping up 3 VMs (rancher-server, rancher-host, rancher-client) and rancher-compos
 
     $ vagrant up
 
+Then access the Rancher UI at `http://172.19.8.8:8080/`.
 
 License and Authors
 -------------------
