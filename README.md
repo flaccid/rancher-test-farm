@@ -8,7 +8,9 @@ Sping up 3 VMs (rancher-server, rancher-host, rancher-client) and rancher-compos
 
     $ vagrant up
 
-Then access the Rancher UI at `http://172.19.8.8:8080/`. The Rancher host is on `172.19.8.9` and the countdown test stack can be reached at `http://172.19.8.9:8000/`
+Then access the Rancher Server's UI at `http://172.19.8.8/`.
+
+The Rancher host is on `172.19.8.9` and the countdown test stack can be reached at `http://172.19.8.9:8000/`
 
 License and Authors
 -------------------
