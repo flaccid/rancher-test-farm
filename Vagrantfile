@@ -75,6 +75,7 @@ Vagrant.configure(2) do |config|
                                   "wget -q #{docker_compose_file} -O /tmp/composition/docker-compose.yml && "\
                                   "wget -q #{rancher_compose_file} -O /tmp/composition/rancher-compose.yml"
 
+    # https://github.com/rancher/rancher/issues/1680
     rancher_up = <<SCRIPT
 api_keys=$(curl --silent -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{}' #{rancher_url}/v1/projects/1a5/apikeys)
 access_key=$(echo "$api_keys" | jq -r '.publicValue')
