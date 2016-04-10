@@ -5,25 +5,48 @@ require_relative 'vagrant_rancheros_guest_plugin.rb'
 
 # To enable rsync folder share change to false
 rsync_folder_disabled = true
-# number_of_nodes = 1
+
 vb_gui = false
 vb_memory = 1024
 vb_cpus = 1
-expose_rancher_ui = 8080
-rancher_private_ip = '172.19.8.8'
-rancher_host_private_ip = '172.19.8.9'
-rancher_url = "http://#{rancher_private_ip}:8080"
+
+rancher = {
+  'server' => {
+    'private_ip' => '172.19.8.8',
+    'container' => {
+      'host_port' => 80
+    }
+  },
+  'host' => {
+    'private_ip' => '172.19.8.9',
+    'container' => {
+      'host_port' => 8000
+    },
+    'labels' => 'lb=true'
+  },
+  'compose' => {
+    'version' => '0.7.4'
+  }
+}
+rancher['server']['url'] = "http://#{rancher['server']['private_ip']}:" \
+  "#{rancher['server']['container']['host_port']}/"
 
 # compose files
-docker_compose_file = 'https://raw.githubusercontent.com/flaccid/countdown_example/master/docker-compose.yml'
-rancher_compose_file = 'https://raw.githubusercontent.com/flaccid/countdown_example/master/rancher-compose.yml'
+docker_compose_file = 'https://raw.githubusercontent.com/flaccid/'\
+                        'countdown_example/master/docker-compose.yml'
+rancher_compose_file = 'https://raw.githubusercontent.com/flaccid/'\
+                        'countdown_example/master/rancher-compose.yml'
+rancher_compose_tarball = 'https://github.com/rancher/rancher-compose/'\
+                            "releases/download/v#{rancher['compose']['version']}/"\
+                            'rancher-compose-linux-amd64-'\
+                            "v#{rancher['compose']['version']}.tar.gz"
 
-rancher_compose_tarball = 'https://github.com/rancher/rancher-compose/releases/download/v0.2.5/rancher-compose-linux-amd64-v0.2.5.tar.gz'
+# not sure why we need to do this worker var
+server_ip = rancher['server']['private_ip']
+server_port = rancher['server']['container']['host_port']
+host_ip = rancher['host']['private_ip']
+host_port = rancher['host']['container']['host_port']
 
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
 Vagrant.configure(2) do |config|
   config.vm.box = 'rancherio/rancheros'
   config.vm.box_version = '>=0.4.1'
@@ -35,25 +58,29 @@ Vagrant.configure(2) do |config|
       vb.memory = vb_memory
       vb.cpus = vb_cpus
     end
-    rancher.vm.network :private_network, ip: rancher_private_ip
+    rancher.vm.network :private_network, ip: server_ip
     rancher.vm.network 'forwarded_port',
-                       guest: 8080,
-                       host: expose_rancher_ui,
+                       host: server_port,
+                       guest: 80,
                        auto_correct: true
     rancher.vm.provision :shell,
                          inline: "! docker ps | grep 'rancher/server' && "\
-                          'docker run -d -p 8080:8080 rancher/server:latest',
+                          "docker run -d -p 80:8080 rancher/server:latest",
                          privileged: true
   end
 
   config.vm.define 'rancher-host' do |rancher_host|
     rancher_host.vm.hostname = 'rancher-host'
-    rancher_host.vm.network :private_network, ip: rancher_host_private_ip
-    rancher_host.vm.network 'forwarded_port', guest: 8000, host: 8000
+    rancher_host.vm.network :private_network, ip: host_ip
+    rancher_host.vm.network 'forwarded_port',
+                            host: host_port,
+                            guest: 8000,
+                            auto_correct: true
     rancher_host.vm.provision :shell,
                               inline: 'docker run -e WAIT=true '\
+                               "-e CATTLE_HOST_LABELS='#{rancher['host']['labels']}' "\
                                '-v /var/run/docker.sock:/var/run/docker.sock '\
-                               "rancher/agent:latest #{rancher_url}",
+                               "rancher/agent:latest #{rancher['server']['url']}",
                               privileged: true
   end
 
@@ -64,7 +91,8 @@ Vagrant.configure(2) do |config|
 
     # install rancher-compose
     rancher_client.vm.provision :shell,
-                                inline: 'cd /tmp && '\
+                                inline: "echo 'Installing Rancher Compose....' && "\
+                                  'cd /tmp && '\
                                   "wget -q #{rancher_compose_tarball} && "\
                                   'tar zxvf ./rancher-compose-*.tar.gz && '\
                                   'cp -v /tmp/rancher-compose-v*/rancher-compose /tmp/'
@@ -75,9 +103,8 @@ Vagrant.configure(2) do |config|
                                   "wget -q #{docker_compose_file} -O /tmp/composition/docker-compose.yml && "\
                                   "wget -q #{rancher_compose_file} -O /tmp/composition/rancher-compose.yml"
 
-    # https://github.com/rancher/rancher/issues/1680
     rancher_up = <<SCRIPT
-api_keys=$(curl --silent -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{}' #{rancher_url}/v1/projects/1a5/apikeys)
+api_keys=$(curl --silent -X POST -H 'Accept: application/json' -H 'Content-Type: application/json' -d '{}' #{rancher['server']['url']}/v1/projects/1a5/apikeys)
 access_key=$(echo "$api_keys" | jq -r '.publicValue')
 secret_key=$(echo "$api_keys" | jq -r '.secretValue')
 
@@ -87,7 +114,7 @@ cat <<EOF> /tmp/rancher-up.sh
 /tmp/rancher-compose \
   -f /tmp/composition/docker-compose.yml \
   -r /tmp/composition/rancher-compose.yml \
-  --url #{rancher_url} \
+  --url #{rancher['server']['url']} \
   --access-key "$access_key" --secret-key "$secret_key" up -d
 EOF
 
