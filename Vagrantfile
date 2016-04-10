@@ -26,7 +26,7 @@ rancher_compose_tarball = 'https://github.com/rancher/rancher-compose/releases/d
 # you're doing.
 Vagrant.configure(2) do |config|
   config.vm.box = 'rancherio/rancheros'
-  config.vm.box_version = '>=0.3.3'
+  config.vm.box_version = '>=0.4.1'
 
   config.vm.define 'rancher-server', primary: true do |rancher|
     rancher.vm.hostname = 'rancher-server'
